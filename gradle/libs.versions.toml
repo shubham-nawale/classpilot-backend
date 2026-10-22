@@ -1,0 +1,36 @@
+[versions]
+java = "25"
+spring-boot = "3.5.6"
+spring-dependency-management = "1.1.7"
+openapi-generator = "7.15.0"
+springdoc = "2.8.13"
+mysql = "8.4.0"
+flyway = "11.13.0"
+gradle-wrapper = "8.14.2"
+
+[libraries]
+# Spring
+spring-boot-starter-web = { module = "org.springframework.boot:spring-boot-starter-web", version.ref = "spring-boot" }
+spring-boot-starter-validation = { module = "org.springframework.boot:spring-boot-starter-validation", version.ref = "spring-boot" }
+spring-boot-starter-security = { module = "org.springframework.boot:spring-boot-starter-security", version.ref = "spring-boot" }
+spring-boot-starter-data-jpa = { module = "org.springframework.boot:spring-boot-starter-data-jpa", version.ref = "spring-boot" }
+spring-boot-starter-actuator = { module = "org.springframework.boot:spring-boot-starter-actuator", version.ref = "spring-boot" }
+spring-boot-starter-test = { module = "org.springframework.boot:spring-boot-starter-test", version.ref = "spring-boot" }
+spring-boot-testcontainers = { module = "org.springframework.boot:spring-boot-testcontainers", version.ref = "spring-boot" }
+
+# DB
+mysql-connector = { module = "com.mysql:mysql-connector-j", version.ref = "mysql" }
+flyway-core = { module = "org.flywaydb:flyway-core", version.ref = "flyway" }
+flyway-mysql = { module = "org.flywaydb:flyway-mysql", version.ref = "flyway" }
+
+# API docs
+springdoc-openapi = { module = "org.springdoc:springdoc-openapi-starter-webmvc-ui", version.ref = "springdoc" }
+
+# Testcontainers
+junit-jupiter = { module = "org.testcontainers:junit-jupiter" }
+mysql-testcontainers = { module = "org.testcontainers:mysql" }
+
+[plugins]
+org-springframework-boot = { id = "org.springframework.boot", version.ref = "spring-boot" }
+io-spring-dependency-management = { id = "io.spring.dependency-management", version.ref = "spring-dependency-management" }
+org-openapi-generator = { id = "org.openapi.generator", version.ref = "openapi-generator" }
