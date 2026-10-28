@@ -1,0 +1,42 @@
+spring:
+  application:
+    name: classpilot-backend
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:classpilot}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC&characterEncoding=UTF-8
+    username: ${DB_USERNAME:classpilot}
+    password: ${DB_PASSWORD:classpilot}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+  sql:
+    init:
+      mode: never
+server:
+  port: ${SERVER_PORT:8080}
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true
+      show-details: when-authorized
+springdoc:
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: ${SPRINGDOC_SWAGGER_UI_ENABLED:true}
+    path: /swagger-ui.html

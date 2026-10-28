@@ -1,20 +1,253 @@
 openapi: 3.0.1
 info:
   title: ClassPilot API
-  description: OpenAPI contract for the ClassPilot backend foundation.
+  description: >-
+    Contract-first API specification for the ClassPilot backend foundation.
+    This contract covers the core platform foundation currently implemented: health,
+    authentication, and authenticated identity endpoints.
   version: 0.1.0
+  contact:
+    name: ClassPilot Engineering
 servers:
   - url: http://localhost:8080
+    description: Local development server
+security:
+  - bearerAuth: []
 paths:
-  /api/health:
+  /api/v1/health:
     get:
-      summary: Health check
+      tags:
+        - System
+      summary: Get service health status
       operationId: getHealth
+      security: []
       responses:
         '200':
-          description: Application is healthy
+          description: Service is healthy
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: OK
+                $ref: '#/components/schemas/ApiResponseString'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/system/me:
+    get:
+      tags:
+        - System
+      summary: Get current authenticated user
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current authenticated user resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseCurrentUser'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate with username and password and return a bearer token
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseLoginResponse'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token issued by the ClassPilot auth endpoint.
+  schemas:
+    ErrorDetail:
+      type: object
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Request validation failed
+      required:
+        - code
+        - message
+    ApiResponseString:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Service is healthy
+        data:
+          type: string
+          example: OK
+        timestamp:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+          nullable: true
+          example: 7af5fd42-74ca-4632-af9d-91d06c7d5559
+        errors:
+          type: array
+          items:
+            type: string
+          example: []
+      required:
+        - success
+        - message
+        - data
+        - timestamp
+        - correlationId
+        - errors
+    LoginRequest:
+      type: object
+      properties:
+        username:
+          type: string
+          example: test-admin
+        password:
+          type: string
+          format: password
+          example: test-pass
+      required:
+        - username
+        - password
+    LoginResponse:
+      type: object
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJ0ZXN0LWFkbWluIn0.signature
+        tokenType:
+          type: string
+          example: Bearer
+      required:
+        - token
+        - tokenType
+    CurrentUser:
+      type: object
+      properties:
+        username:
+          type: string
+          example: test-admin
+        tenantId:
+          type: string
+          example: default
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - ROLE_ADMIN
+      required:
+        - username
+        - tenantId
+        - roles
+    ApiResponseBase:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Authentication successful
+        data:
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+          nullable: true
+          example: 7af5fd42-74ca-4632-af9d-91d06c7d5559
+        errors:
+          type: array
+          items:
+            type: string
+          example: []
+      required:
+        - success
+        - message
+        - timestamp
+        - correlationId
+        - errors
+    ApiResponseLoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/LoginResponse'
+    ApiResponseCurrentUser:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          properties:
+            data:
+              $ref: '#/components/schemas/CurrentUser'
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 0
+          example: 0
+        size:
+          type: integer
+          minimum: 1
+          example: 20
+        totalElements:
+          type: integer
+          minimum: 0
+          example: 42
+        totalPages:
+          type: integer
+          minimum: 0
+          example: 3
+      required:
+        - page
+        - size
+        - totalElements
+        - totalPages
+  responses:
+    UnauthorizedError:
+      description: Authentication required or invalid token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'
+    InternalServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'

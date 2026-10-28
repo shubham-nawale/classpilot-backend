@@ -1,1 +1,3 @@
 rootProject.name = "classpilot-backend"
+
+include 'classpilot-framework'
