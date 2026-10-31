@@ -52,13 +52,13 @@ classpilot-backend/
 ├── src/
 ├── .env.example
 ├── .gitignore
-├── build.gradle.kts
+├── build.gradle
 ├── CHANGELOG.md
 ├── compose.yaml
 ├── CONTRIBUTING.md
 ├── Dockerfile
 ├── README.md
-├── settings.gradle.kts
+├── settings.gradle
 └── gradlew
 ```
 

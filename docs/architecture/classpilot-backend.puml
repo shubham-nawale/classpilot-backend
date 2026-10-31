@@ -1,0 +1,137 @@
+@startuml
+title ClassPilot Backend - Runtime Architecture
+left to right direction
+skinparam componentStyle rectangle
+skinparam packageStyle rectangle
+
+actor "Web / Mobile Client" as client
+database "MySQL 8\n\norganizations\ninstitutions\nflyway_schema_history" as mysql
+
+rectangle "ClassPilot Spring Boot application" {
+  package "Shared infrastructure\ncom.classpilot.shared" {
+    component "CorrelationIdFilter" as correlation
+    component "TenantContextFilter\nX-Tenant-Id -> ThreadLocal" as tenant
+    component "SecurityConfiguration\nJWT + HTTP Basic\nmethod authorization" as security
+    component "AuthController" as auth
+    component "AuthenticationManager\nDaoAuthenticationProvider" as authenticationManager
+    component "InMemoryUserDetailsManager\nconfigured admin account" as userDetails
+    component "JwtAuthenticationFilter\nJwtTokenService" as jwt
+    component "CurrentUserProvider" as currentUser
+    component "HealthController\nSystemController" as system
+    component "ApiExceptionHandler\nApiResponse" as apiSupport
+  }
+
+  package "Organization module\ncom.classpilot.organization" {
+    component "OrganizationController" as orgController
+    component "InstitutionController" as instController
+    component "OrganizationService" as orgService
+    component "InstitutionService" as instService
+    component "OrganizationRepository\nSpring Data JPA" as orgRepository
+    component "InstitutionRepository\nSpring Data JPA" as instRepository
+    component "Organization\nJPA entity" as organization
+    component "Institution\nJPA entity" as institution
+  }
+
+  package "Shared library\n:classpilot-framework" {
+    component "TraceIdFilter" as framework
+  }
+}
+
+package "Build-time API contract" {
+  component "src/main/openapi/\nclasspilot-openapi.yaml" as openapi
+  component "OpenAPI Generator\nbuild/generated/openapi" as generator
+}
+
+client --> correlation : HTTP request
+correlation --> tenant
+tenant --> security
+security --> jwt : Bearer token
+security --> auth : POST /api/v1/auth/login
+auth --> authenticationManager : authenticate credentials
+authenticationManager --> userDetails : load user
+auth --> jwt : issue JWT
+security --> orgController : authorized request
+security --> instController : authorized request
+security --> system : authorized request
+orgController --> orgService
+instController --> instService
+system --> currentUser
+orgService --> orgRepository
+instService --> orgRepository : resolve organization
+instService --> instRepository
+orgRepository --> organization
+instRepository --> institution
+institution --> organization : belongs to
+orgRepository --> mysql : JPA / Hibernate
+instRepository --> mysql : JPA / Hibernate
+apiSupport ..> orgController : handles API errors
+apiSupport ..> instController : handles API errors
+framework ..> security : TraceIdFilter
+
+openapi --> generator : Gradle openApiGenerate
+generator ..> orgController : generated separately;\ncontrollers do not implement generated interfaces
+
+note right of mysql
+  Flyway owns schema changes.
+  Hibernate validates the schema
+  (ddl-auto=validate).
+end note
+
+note bottom of tenant
+  The filter establishes request context;
+  organization/institution repository
+  queries do not currently use it.
+end note
+@enduml
+
+@startuml
+title ClassPilot Backend - Organization Domain Model
+hide methods
+skinparam classAttributeIconSize 0
+
+class Organization <<JPA entity>> {
+  id: String (UUID)
+  name: String
+  code: String
+  status: OrganizationStatus
+  createdAt: Instant
+  updatedAt: Instant
+  version: Long
+}
+
+class Institution <<JPA entity>> {
+  id: String (UUID)
+  name: String
+  code: String
+  institutionType: InstitutionType
+  status: InstitutionStatus
+  createdAt: Instant
+  updatedAt: Instant
+  version: Long
+}
+
+enum OrganizationStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum InstitutionStatus {
+  ACTIVE
+  SUSPENDED
+  INACTIVE
+}
+
+enum InstitutionType {
+  SCHOOL
+  COACHING
+  OTHER
+}
+
+Organization "1" <-- "0..*" Institution : organization_id
+
+note bottom of Institution
+  Unique code within an organization:
+  (organization_id, code)
+end note
+@enduml
