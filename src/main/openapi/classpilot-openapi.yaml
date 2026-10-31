@@ -1,20 +1,783 @@
 openapi: 3.0.1
+
 info:
   title: ClassPilot API
-  description: OpenAPI contract for the ClassPilot backend foundation.
-  version: 0.1.0
+  description: >-
+    Contract-first REST API for ClassPilot, a multi-tenant education
+    management platform serving schools, coaching institutes, and
+    educational organizations.
+  version: 0.2.0
+  contact:
+    name: ClassPilot Engineering
+
 servers:
   - url: http://localhost:8080
+    description: Local development server
+
+security:
+  - bearerAuth: []
+
+tags:
+  - name: System
+    description: Health and authenticated-user endpoints
+  - name: Authentication
+    description: Authentication endpoints
+  - name: Organizations
+    description: Organization management
+  - name: Institutions
+    description: Institution management
+
 paths:
-  /api/health:
+  /api/v1/health:
     get:
-      summary: Health check
+      tags:
+        - System
+      summary: Get service health status
       operationId: getHealth
+      security: []
       responses:
         '200':
-          description: Application is healthy
+          description: Service is healthy
           content:
-            text/plain:
+            application/json:
               schema:
-                type: string
-                example: OK
+                $ref: '#/components/schemas/ApiResponseString'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/system/me:
+    get:
+      tags:
+        - System
+      summary: Get current authenticated user
+      operationId: getCurrentUser
+      responses:
+        '200':
+          description: Current authenticated user resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseCurrentUser'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: Authenticate with username and password
+      description: >-
+        Authenticates a user using the existing authentication
+        implementation and returns a bearer token.
+      operationId: login
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Authentication successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseLoginResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/organizations:
+    post:
+      tags:
+        - Organizations
+      summary: Create an organization
+      description: >-
+        Creates an organization. Requires an authenticated platform
+        administrator. The organization identifier, status, timestamps,
+        and ownership information are server-managed.
+      operationId: createOrganization
+      x-required-roles:
+        - PLATFORM_ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateOrganizationRequest'
+      responses:
+        '201':
+          description: Organization created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOrganization'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/organizations/{organizationId}:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+
+    get:
+      tags:
+        - Organizations
+      summary: Get an organization
+      description: >-
+        Retrieves an organization only when the authenticated user has
+        permission to access it.
+      operationId: getOrganization
+      responses:
+        '200':
+          description: Organization retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOrganization'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Organizations
+      summary: Update an organization
+      description: >-
+        Updates permitted organization fields. Organization identifiers,
+        ownership, and system-managed fields cannot be modified.
+      operationId: updateOrganization
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateOrganizationRequest'
+      responses:
+        '200':
+          description: Organization updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseOrganization'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/organizations/{organizationId}/institutions:
+    parameters:
+      - $ref: '#/components/parameters/OrganizationId'
+
+    post:
+      tags:
+        - Institutions
+      summary: Create an institution
+      description: >-
+        Creates an institution belonging to the specified organization.
+        Requires platform-administrator access or an authorized
+        organization-administrator membership.
+      operationId: createInstitution
+      x-required-roles:
+        - PLATFORM_ADMIN
+        - ORGANIZATION_ADMIN
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateInstitutionRequest'
+      responses:
+        '201':
+          description: Institution created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseInstitution'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    get:
+      tags:
+        - Institutions
+      summary: List institutions belonging to an organization
+      description: >-
+        Returns a paginated list of institutions belonging to the
+        specified organization. Results must be scoped to the
+        authenticated user's permissions.
+      operationId: listInstitutions
+      parameters:
+        - name: page
+          in: query
+          description: Zero-based page number
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+          example: 0
+
+        - name: size
+          in: query
+          description: Number of records per page; maximum 100
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          example: 20
+
+        - name: sortBy
+          in: query
+          description: Field used to sort the result
+          required: false
+          schema:
+            type: string
+            enum:
+              - name
+              - code
+              - createdAt
+            default: name
+
+        - name: direction
+          in: query
+          description: Sort direction
+          required: false
+          schema:
+            type: string
+            enum:
+              - ASC
+              - DESC
+            default: ASC
+
+      responses:
+        '200':
+          description: Institutions retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseInstitutionPage'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /api/v1/institutions/{institutionId}:
+    parameters:
+      - $ref: '#/components/parameters/InstitutionId'
+
+    get:
+      tags:
+        - Institutions
+      summary: Get an institution
+      description: >-
+        Retrieves an institution only when the authenticated user has
+        permission to access its organization and institution.
+      operationId: getInstitution
+      responses:
+        '200':
+          description: Institution retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseInstitution'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    patch:
+      tags:
+        - Institutions
+      summary: Update an institution
+      description: >-
+        Updates permitted institution fields. Institution identifiers
+        and organization ownership cannot be changed through this endpoint.
+      operationId: updateInstitution
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateInstitutionRequest'
+      responses:
+        '200':
+          description: Institution updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponseInstitution'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          $ref: '#/components/responses/NotFoundError'
+        '409':
+          $ref: '#/components/responses/ConflictError'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT bearer token issued by ClassPilot authentication.
+
+  parameters:
+    OrganizationId:
+      name: organizationId
+      in: path
+      required: true
+      description: Identifier of the organization
+      schema:
+        type: string
+        minLength: 1
+      example: org-001
+
+    InstitutionId:
+      name: institutionId
+      in: path
+      required: true
+      description: Identifier of the institution
+      schema:
+        type: string
+        minLength: 1
+      example: inst-001
+
+  schemas:
+    ErrorDetail:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        message:
+          type: string
+          example: Request validation failed
+
+    ApiResponseBase:
+      type: object
+      required:
+        - success
+        - message
+        - timestamp
+        - correlationId
+        - errors
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Operation completed successfully
+        data:
+          nullable: true
+        timestamp:
+          type: string
+          format: date-time
+        correlationId:
+          type: string
+          nullable: true
+          example: 7af5fd42-74ca-4632-af9d-91d06c7d5559
+        errors:
+          type: array
+          items:
+            type: string
+          example: []
+
+    ApiResponseString:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              type: string
+              example: OK
+
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 100
+          example: test-admin
+        password:
+          type: string
+          format: password
+          minLength: 1
+          writeOnly: true
+
+    LoginResponse:
+      type: object
+      required:
+        - token
+        - tokenType
+      properties:
+        token:
+          type: string
+          example: eyJhbGciOiJIUzI1NiJ9.example.signature
+        tokenType:
+          type: string
+          enum:
+            - Bearer
+          example: Bearer
+
+    CurrentUser:
+      type: object
+      required:
+        - username
+        - tenantId
+        - roles
+      properties:
+        username:
+          type: string
+          example: test-admin
+        tenantId:
+          type: string
+          description: Existing tenant identifier from the authentication implementation
+          example: default
+        roles:
+          type: array
+          items:
+            type: string
+          example:
+            - ROLE_ADMIN
+
+    ApiResponseLoginResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/LoginResponse'
+
+    ApiResponseCurrentUser:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/CurrentUser'
+
+    OrganizationStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - SUSPENDED
+        - INACTIVE
+      example: ACTIVE
+
+    InstitutionStatus:
+      type: string
+      enum:
+        - ACTIVE
+        - SUSPENDED
+        - INACTIVE
+      example: ACTIVE
+
+    InstitutionType:
+      type: string
+      enum:
+        - SCHOOL
+        - COACHING
+        - OTHER
+      example: SCHOOL
+
+    CreateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - code
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: Sunrise Education Group
+        code:
+          type: string
+          minLength: 2
+          maxLength: 50
+          pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$'
+          description: >-
+            Organization code. The server normalizes the code according
+            to the documented case-sensitivity policy.
+          example: SUNRISE-GROUP
+
+    UpdateOrganizationRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: Sunrise Education Group India
+
+    Organization:
+      type: object
+      required:
+        - id
+        - name
+        - code
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: org-001
+        name:
+          type: string
+          example: Sunrise Education Group
+        code:
+          type: string
+          example: SUNRISE-GROUP
+        status:
+          $ref: '#/components/schemas/OrganizationStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ApiResponseOrganization:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/Organization'
+
+    CreateInstitutionRequest:
+      type: object
+      additionalProperties: false
+      required:
+        - name
+        - code
+        - institutionType
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: Sunrise Public School
+        code:
+          type: string
+          minLength: 2
+          maxLength: 50
+          pattern: '^[A-Za-z0-9][A-Za-z0-9_-]*$'
+          example: SUNRISE-PUBLIC
+        institutionType:
+          $ref: '#/components/schemas/InstitutionType'
+
+    UpdateInstitutionRequest:
+      type: object
+      additionalProperties: false
+      minProperties: 1
+      properties:
+        name:
+          type: string
+          minLength: 2
+          maxLength: 150
+          example: Sunrise Public School - Main Campus
+
+    Institution:
+      type: object
+      required:
+        - id
+        - organizationId
+        - name
+        - code
+        - institutionType
+        - status
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          example: inst-001
+        organizationId:
+          type: string
+          example: org-001
+        name:
+          type: string
+          example: Sunrise Public School
+        code:
+          type: string
+          example: SUNRISE-PUBLIC
+        institutionType:
+          $ref: '#/components/schemas/InstitutionType'
+        status:
+          $ref: '#/components/schemas/InstitutionStatus'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ApiResponseInstitution:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          required:
+            - data
+          properties:
+            data:
+              $ref: '#/components/schemas/Institution'
+
+    Pagination:
+      type: object
+      required:
+        - page
+        - size
+        - totalElements
+        - totalPages
+      properties:
+        page:
+          type: integer
+          minimum: 0
+          example: 0
+        size:
+          type: integer
+          minimum: 1
+          maximum: 100
+          example: 20
+        totalElements:
+          type: integer
+          minimum: 0
+          example: 42
+        totalPages:
+          type: integer
+          minimum: 0
+          example: 3
+
+    ApiResponseInstitutionPage:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponseBase'
+        - type: object
+          required:
+            - data
+            - pagination
+          properties:
+            data:
+              type: array
+              items:
+                $ref: '#/components/schemas/Institution'
+            pagination:
+              $ref: '#/components/schemas/Pagination'
+
+  responses:
+    UnauthorizedError:
+      description: Authentication is missing or invalid
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'
+
+    ForbiddenError:
+      description: Authenticated user does not have the required permission
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'
+
+    NotFoundError:
+      description: Resource not found or not accessible
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'
+
+    ConflictError:
+      description: Resource conflicts with an existing record
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'
+
+    ValidationError:
+      description: Request validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'
+
+    InternalServerError:
+      description: Unexpected server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponseBase'
